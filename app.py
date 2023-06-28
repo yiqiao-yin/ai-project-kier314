@@ -1,6 +1,6 @@
 import streamlit as st
-
 import google.generativeai as palm
+import pandas as pd
 
 palm_api_key = st.secrets["PALM_API_KEY"]
 def call_palm(prompt: str, palm_api_key: str) -> str:
@@ -14,6 +14,8 @@ def call_palm(prompt: str, palm_api_key: str) -> str:
 
     return completion.result
 
+df = pd.read_csv("data.csv")
+st.dataframe(df)
 user_question = st.text_input('Enter a question:', 'Tell me a joke.')
 answer = call_palm(prompt=user_question, palm_api_key=palm_api_key)
 st.write('Answer:', answer)
