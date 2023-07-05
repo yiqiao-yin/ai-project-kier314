@@ -45,6 +45,29 @@ def calculate_cosine_similarity(sentence1: str, sentence2: str) -> float:
     return float(similarity)
 
 
+def palm_text_embedding(prompt: str, key: str) -> str:
+    # API Key
+    palm.configure(api_key=key)
+    model = "models/embedding-gecko-001"
+
+    return palm.generate_embeddings(model=model, text=prompt)['embedding']
+
+
+def calculate_sts_palm_score(sentence1: str, sentence2: str, key: str) -> float:
+    # Compute sentence embeddings
+    embedding1 = palm_text_embedding(sentence1, key) # Flatten the embedding array
+    embedding2 = palm_text_embedding(sentence2, key)  # Flatten the embedding array
+
+    # Convert to array
+    embedding1 = np.asarray(embedding1)
+    embedding2 = np.asarray(embedding2)
+
+    # Calculate cosine similarity between the embeddings
+    similarity_score = 1 - cosine(embedding1, embedding2)
+
+    return similarity_score
+
+
 # Load data
 df = pd.read_csv("question_answer_data_set_list.csv")
 st.dataframe(df)
@@ -53,7 +76,7 @@ st.dataframe(df)
 user_question = st.text_input('Enter a question:', 'Tell me a joke.')
 
 # Search algorithm
-df['sim_score'] = df.apply(lambda x: calculate_cosine_similarity(x['question'], user_question), axis=1)
+df['sim_score'] = df.apply(lambda x: calculate_sts_palm_score(x['question'], user_question, key=palm_api_key), axis=1)
 df = df.sort_values(by='sim_score', ascending=False)
 context = df['answers'].iloc[0:3]
 
