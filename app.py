@@ -47,13 +47,15 @@ def calculate_cosine_similarity(sentence1: str, sentence2: str) -> float:
 
 # Load data
 df = pd.read_csv("question_answer_data_set_list.csv")
-df['sim_score'] = df.apply(lambda x: calculate_cosine_similarity(x['question'], user_question), axis=1)
-df = df.sort_values(by='sim_score', ascending=False)
-context = df['answers'].iloc[0:3]
 st.dataframe(df)
 
 # UI
 user_question = st.text_input('Enter a question:', 'Tell me a joke.')
+
+# Search algorithm
+df['sim_score'] = df.apply(lambda x: calculate_cosine_similarity(x['question'], user_question), axis=1)
+df = df.sort_values(by='sim_score', ascending=False)
+context = df['answers'].iloc[0:3]
 
 # Prompt engineer
 engineered_prompt = f"""
