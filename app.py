@@ -4,6 +4,11 @@ import pandas as pd
 from scipy.spatial.distance import cosine
 import streamlit as st
 
+from langchain.agents import load_tools
+from langchain.agents import initialize_agent
+from langchain.agents import AgentType
+from langchain.llms import OpenAI
+
 # Backend
 palm_api_key = st.secrets["PALM_API_KEY"]
 def call_palm(prompt: str, palm_api_key: str) -> str:
@@ -66,6 +71,19 @@ def calculate_sts_palm_score(sentence1: str, sentence2: str, key: str) -> float:
     similarity_score = 1 - cosine(embedding1, embedding2)
 
     return similarity_score
+
+SERPAPI_API_KEY = st.secrets["SERPAPI_API_KEY"]
+def call_langchain(prompt: str) -> str:
+    llm = OpenAI(temperature=0)
+    tools = load_tools(["serpapi", "llm-math"], llm=llm)
+    agent = initialize_agent(
+        tools,
+        llm,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True)
+    output = agent.run(prompt)
+
+    return output
 
 
 # Load data
