@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.spatial.distance import cosine
 import streamlit as st
 
+import openai
 from langchain.agents import load_tools
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
