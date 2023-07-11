@@ -1,3 +1,4 @@
 scipy==1.10.1
 streamlit==1.24.0
+langchain==0.0.227
 google-generativeai>=0.1.0
