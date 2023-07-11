@@ -98,9 +98,18 @@ df['sim_score'] = df.apply(lambda x: calculate_sts_palm_score(x['question'], use
 df = df.sort_values(by='sim_score', ascending=False)
 context = df['answers'].iloc[0:3]
 
+# Langchain Agent for Google Search
+prompt_for_langchain_agent_for_search = f"""
+    Search information about the key words or questions
+    provided by the user: {user_question}
+"""
+
+search_results = call_langchain(prompt_for_langchain_agent_for_search)
+
 # Prompt engineer
 engineered_prompt = f"""
     Based on the context: {context}, 
+    and also based on additional context from internet results: {search_results},
     answer the following question: {user_question}
 """
 
