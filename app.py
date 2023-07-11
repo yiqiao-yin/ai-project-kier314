@@ -73,6 +73,7 @@ def calculate_sts_palm_score(sentence1: str, sentence2: str, key: str) -> float:
 
     return similarity_score
 
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 SERPAPI_API_KEY = st.secrets["SERPAPI_API_KEY"]
 def call_langchain(prompt: str) -> str:
     llm = OpenAI(temperature=0)
