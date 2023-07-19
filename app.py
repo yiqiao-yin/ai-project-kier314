@@ -13,6 +13,7 @@ from langchain.agents import initialize_agent
 from langchain.agents import AgentType
 from langchain.llms import OpenAI
 
+import cv2
 from src.vision_model.vit import *
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -212,7 +213,7 @@ elif domain == "Image":
         image = Image.open(uploaded_file)
         image = np.array(image)
         st.write(f"Dimension of the original image: {image.shape}")
-        image = np.resize(image, (w, h))
+        image = cv2.resize(image, (w, h))
         st.write(f"Dimension of resized image: {image.shape}")
 
         # Inference
