@@ -21,7 +21,7 @@ import tensorflow_addons as tfa
 
 # BACKEND
 palm_api_key = st.secrets["PALM_API_KEY"]
-df = pd.read_csv("question_answer_data_set_list.csv")
+df = pd.read_csv("data/question_answer_data_set_list.csv")
 
 st.sidebar.title("Sidebar")
 model = st.sidebar.selectbox(
@@ -190,14 +190,14 @@ elif domain == "Image":
     )
     # Load model
     # !!! LOAD CORRECT MODEL ONCE COMPLETE !!!
-    # new_model = tf.keras.models.load_model("toy_mnist_model.h5")
+    # new_model = tf.keras.models.load_model("model/toy_mnist_model.h5")
     # if new_model is not None:
     #     st.success("Load a neural network model successfully.")
 
     # TODO
     custom_object_scope = tf.keras.saving.custom_object_scope
     with custom_object_scope({"Patches": Patches, "PatchEncoder": PatchEncoder}):
-        vit_model = tf.keras.models.load_model("vit_128_128.h5")
+        vit_model = tf.keras.models.load_model("model/vit_128_128.h5")
         st.success("Custom model loadded successfully!")
 
     # Load image
