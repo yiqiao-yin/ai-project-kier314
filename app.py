@@ -1,17 +1,39 @@
+import streamlit as st
+import pandas as pd
 import google.generativeai as palm
 import numpy as np
-import pandas as pd
-from scipy.spatial.distance import cosine
-import streamlit as st
-
 import openai
+import tensorflow as tf
+from PIL import Image
+
+from scipy.spatial.distance import cosine
+
 from langchain.agents import load_tools
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
 from langchain.llms import OpenAI
 
-# Backend
+from src.vision_model.vit import *
+from tensorflow import keras
+from tensorflow.keras import layers
+import tensorflow_addons as tfa
+
+# BACKEND
 palm_api_key = st.secrets["PALM_API_KEY"]
+df = pd.read_csv("question_answer_data_set_list.csv")
+
+st.sidebar.title("Sidebar")
+model = st.sidebar.selectbox(
+    "Choose which language model do you want to use:",
+    ("Palm", "next")
+)
+domain = st.sidebar.selectbox(
+    "Choose which domain you want to search:", ("Text", "Image", "next")
+)
+counter_placeholder = st.sidebar.empty()
+counter_placeholder.write(f"Next item ... ")
+clear_button = st.sidebar.button("Clear Conversation", key="clear")
+
 def call_palm(prompt: str, palm_api_key: str) -> str:
     palm.configure(api_key=palm_api_key)
     completion = palm.generate_text(
@@ -48,8 +70,7 @@ def calculate_cosine_similarity(sentence1: str, sentence2: str) -> float:
     # Calculate the cosine similarity between the frequency vectors
     similarity = 1 - cosine(freq_vector1, freq_vector2)
 
-    return float(similarity)
-
+    return similarity
 
 def palm_text_embedding(prompt: str, key: str) -> str:
     # API Key
@@ -73,8 +94,9 @@ def calculate_sts_palm_score(sentence1: str, sentence2: str, key: str) -> float:
 
     return similarity_score
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
 SERPAPI_API_KEY = st.secrets["SERPAPI_API_KEY"]
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
 def call_langchain(prompt: str) -> str:
     llm = OpenAI(temperature=0)
     tools = load_tools(["serpapi", "llm-math"], llm=llm)
@@ -87,33 +109,113 @@ def call_langchain(prompt: str) -> str:
 
     return output
 
+# reset everything
+if clear_button:
+    st.session_state["generated"] = []
+    st.session_state["past"] = []
+    st.session_state["messages"] = [
+        {"role": "system", "content": "You are a helpful assistant."}
+    ]
+    st.session_state["number_tokens"] = []
+    st.session_state["domain_name"] = []
+    counter_placeholder.write(f"Next item ...")
 
-# Load data
-df = pd.read_csv("question_answer_data_set_list.csv")
-st.dataframe(df)
 
-# UI
-user_question = st.text_input('Enter a question:', 'Tell me a joke.')
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# Search algorithm
-df['sim_score'] = df.apply(lambda x: calculate_sts_palm_score(x['question'], user_question, key=palm_api_key), axis=1)
-df = df.sort_values(by='sim_score', ascending=False)
-context = df['answers'].iloc[0:3]
 
-# Langchain Agent for Google Search
-prompt_for_langchain_agent_for_search = f"""
-    Search information about the key words or questions
-    provided by the user: {user_question}
-"""
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-search_results = call_langchain(prompt_for_langchain_agent_for_search)
+if domain == "Text":
+    # React to user input
+    if prompt := st.chat_input("Enter key words here."):
+        # Display user message in chat message container
+        st.chat_message("user").markdown(prompt)
+    
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # FRONTEND
+        df['similarity'] = df.apply(lambda x: calculate_sts_palm_score(x['question'], prompt, palm_api_key), axis = 1)
+        df = df.sort_values(by='similarity', ascending=False)
+        context = df['answers'].iloc[0:2]
+        top_sim_score = df['similarity'][0]
+        #st.dataframe(df)
+        
+        #Langchain agent for google search
+        langchain_search_prompt = f"""
+            search information about the key words in or questions in {prompt}.
+        """
+        
+        langchain_response = call_langchain(langchain_search_prompt)
+        
+        #prompt engineer
+        if top_sim_score > 0.85:
+            engineered_prompt = f"""
+                Based on the context: {context} with similarity score: {top_sim_score},
+                answer the following question: {prompt} with correct grammar,
+                sentence structure, and substantial details.
+            """
+        else:
+            engineered_prompt = f"""
+                Based on the context: {context} with similarity score: {top_sim_score},
+                additonally based on this context from the internet: {langchain_response},
+                if that similarity score is higher than 0.85 then base most of the answer off of context and not internet context,
+                answer the following question: {prompt} with correct grammar,
+                sentence structure, and substantial details.
+            """
+            
+        response = call_palm(prompt=engineered_prompt, palm_api_key=palm_api_key)
 
-# Prompt engineer
-engineered_prompt = f"""
-    Based on the context: {context}, 
-    and also based on additional context from internet results: {search_results},
-    answer the following question: {user_question}
-"""
+        
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            st.markdown(response)
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
-answer = call_palm(prompt=engineered_prompt, palm_api_key=palm_api_key)
-st.write('Answer:', answer)
+elif domain == "Image":
+    st.markdown(
+        """
+        To learn more about image classification, please refer to this [notebook](https://github.com/yiqiao-yin/WYNAssociates/blob/main/docs/ref-deeplearning/ex02%20-%20ann%20and%20cnn.ipynb).
+
+        ⚠️⚠️⚠️To interact with the app, you'll need a picture. You can find a sample picture [here](https://github.com/yiqiao-yin/WYN-Vision/tree/main/pics).
+    """
+    )
+    # Load model
+    # !!! LOAD CORRECT MODEL ONCE COMPLETE !!!
+    new_model = tf.keras.models.load_model("toy_mnist_model.h5")
+    if new_model is not None:
+        st.success("Load a neural network model successfully.")
+    custom_object_scope = tf.keras.saving.custom_object_scope
+    with custom_object_scope({"Patches": Patches, "PatchEncoder": PatchEncoder}):
+        model = tf.keras.models.load_model(model_path)
+        st.success("Custom model loadded successfully!")
+
+    # Load image
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload your file here...", type=["png", "jpeg", "jpg"]
+    )
+    if uploaded_file is not None:
+        st.image(uploaded_file)
+
+        # Convert to array
+        # !!! CHANGE SIE OF IMAGE WITH MODEL ONCE COMPLETE !!!
+        w, h = 28, 28
+        image = Image.open(uploaded_file)
+        image = np.array(image)
+        st.write(f"Dimension of the original image: {image.shape}")
+        image = np.resize(image, (w, h))
+        st.write(f"Dimension of resized image: {image.shape}")
+
+        # Inference
+        pred = new_model.predict(image.reshape((1, w, h)))
+        label = np.argmax(pred, axis=1)
+        st.write(f"Classification Result: {label}")
+    else:
+        st.warning("Please upload a jpg/png file.")
