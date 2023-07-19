@@ -194,7 +194,7 @@ elif domain == "Image":
         st.success("Load a neural network model successfully.")
     custom_object_scope = tf.keras.saving.custom_object_scope
     with custom_object_scope({"Patches": Patches, "PatchEncoder": PatchEncoder}):
-        model = tf.keras.models.load_model(model_path)
+        model = tf.keras.models.load_model("vit_128_128.h5")
         st.success("Custom model loadded successfully!")
 
     # Load image
